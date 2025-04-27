@@ -1,0 +1,473 @@
+* Erlang
+:PROPERTIES:
+:ID:       1859d883-5ea2-4029-8770-e3abc802d9c2
+:END:
+
+** License
+
+Q&A about Erlang © 2025 by Pierre-Henry FROHGING is licensed under Creative Commons
+Attribution-ShareAlike 4.0 International. To view a copy of this license, visit
+https://creativecommons.org/licenses/by-sa/4.0/
+
+** Contribute
+
+1. Fork the repo.
+2. Change it.
+3. Send a pull request.
+
+** Use
+
+1. Open Emacs.
+2. Install ~total-recall~ (https://melpa.org/#/total-recall).
+3. ~M-x total-recall~
+
+** Introducing Concurrency
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: cf12a325-67ab-4447-8746-a2b5bc2c86aa
+:END:
+
+**** List primitives
+
+**** Answer
+
+- module
+  - export
+- function
+- spawn : Module FuncName List(Value) → PID
+- Module ~ Type
+- process ~ instance of a Type
+- Pid ! Msg
+- receive Pattern -> … . end
+
+** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: ca628747-1b06-4670-a7e1-8662cfad2751
+:END:
+
+*** Explain
+
+#+begin_src erlang
+-module(afile_client).
+-export([ls/1, get_file/2]).
+ls(Server) ->
+    Server ! {self(), list_dir},
+    receive
+        {Server, FileList} ->
+            FileList
+    end.
+get_file(Server, File) ->
+    Server ! {self(), {get_file, File}},
+    receive
+        {Server, Content} ->
+            Content
+    end.
+#+end_src
+
+#+begin_src erlang
+-module(afile_server).
+-export([start/1, loop/1]).
+start(Dir) -> spawn(afile_server, loop, [Dir]).
+loop(Dir) ->
+    receive
+        {Client, list_dir} ->
+            Client ! {self(), file:list_dir(Dir)};
+        {Client, {get_file, File}} ->
+            Full = filename:join(Dir, File),
+            Client ! {self(), file:read_file(Full)}
+    end,
+    loop(Dir).
+#+end_src
+
+*** Answer
+
+This Erlang code implements a simple client-server system for file operations. The
+=afile_server= module runs a server process that handles file-related requests, while
+the =afile_client= module provides functions for clients to interact with the
+server. Below is a detailed explanation of each module and how they work together,
+formatted in Org Mode.
+
+**** =afile_server= Module
+
+The =afile_server= module defines a server that manages file operations in a specified
+directory.
+
+***** Key Functions
+****** =start/1=
+
+#+begin_src erlang
+start(Dir) -> spawn(afile_server, loop, [Dir]).
+#+end_src
+
+- *Purpose*: Starts the server process.
+- *Input*: =Dir= (a directory path).
+- *Behavior*: Spawns a new process running the =loop/1= function, passing =Dir= as an
+  argument. Returns the process ID (PID) of the server.
+- *Note*: =spawn/3= creates a new process for the =afile_server:loop/1= function with =Dir=
+  as its initial state.
+
+****** =loop/1=
+#+begin_src erlang
+loop(Dir) -> receive {Client, list_dir} -> Client ! {self(), file:list_dir(Dir)};
+    {Client, {get_file, File}} -> Full = filename:join(Dir, File), Client ! {self(),
+    file:read_file(Full)} end, loop(Dir).
+#+end_src
+
+- *Purpose*: Runs an infinite loop to handle client requests.
+- *Input*: =Dir= (心情the directory the server operates on).
+- *Behavior*:
+  - Waits for messages in its mailbox using =receive=.
+  - Handles two types of messages:
+    1. ={Client, list_dir}=:
+       - *Action*: Calls =file:list_dir(Dir)= to get a list of files in =Dir=.
+       - *Response*: Sends a message ={self(), Result}= back to the =Client=, where =Result=
+         is the file list (or an error).
+    2. ={Client, {get_file, File}}=:
+       - *Action*: Constructs the full file path using =filename:join(Dir, File)= and
+         reads the file’s contents with =file:read_file(Full)=.
+       - *Response*: Sends ={self(), Content}= to the =Client=, where =Content= is the file’s
+         contents (or an error).
+  - After handling a message, recursively calls =loop(Dir)= to continue listening for
+    new messages.
+- *Note*: =self()= returns the server’s PID, included in responses to identify the
+  sender.
+
+**** =afile_client= Module
+The =afile_client= module provides functions for clients to send requests to the server
+and receive responses.
+
+***** Key Functions
+****** =ls/1=
+#+begin_src erlang
+ls(Server) -> Server ! {self(), list_dir}, receive {Server, FileList} -> FileList
+    end.
+#+end_src
+- *Purpose*: Requests a list of files in the server’s directory.
+- *Input*: =Server= (the PID of the server process).
+- *Behavior*:
+  - Sends a message ={self(), list_dir}= to the server, where =self()= is the client’s
+    PID.
+  - Waits for a response matching ={Server, FileList}=.
+  - Returns =FileList= (the list of files or an error).
+- *Note*: The client expects the response to come from the specific =Server= PID to
+  ensure it processes the correct message.
+
+****** =get_file/2=
+#+begin_src erlang
+get_file(Server, File) -> Server ! {self(), {get_file, File}}, receive {Server,
+    Content} -> Content end.
+#+end_src
+- *Purpose*: Requests the contents of a specific file.
+- *Input*:
+  - =Server=: The server’s PID.
+  - =File=: The name of the file to read.
+- *Behavior*:
+  - Sends a message ={self(), {get_file, File}}= to the server.
+  - Waits for a response matching ={Server, Content}=.
+  - Returns =Content= (the file’s contents or an error).
+- *Note*: Like =ls/1=, it ensures the response comes from the correct =Server=.
+
+**** How It Works Together
+1. *Starting the Server*:
+   - A user starts the server by calling =afile_server:start(Dir)=, where =Dir= is the
+     directory to operate on (e.g., ="/path/to/dir"=).
+   - This spawns a server process that runs =loop(Dir)=, ready to handle requests.
+
+2. *Client Requests*:
+   - A client process uses =afile_client:ls(Server)= to get a list of files or
+     =afile_client:get_file(Server, File)= to read a file’s contents.
+   - The client sends a message to the server’s PID with its own PID included, so the
+     server knows where to send the response.
+
+3. *Server Processing*:
+   - The server, in its =loop/1=, receives the client’s message, processes it using
+     Erlang’s =file= module functions (=file:list_dir/1= or =file:read_file/1=), and sends
+     the result back to the client.
+   - The server continues looping to handle more requests.
+
+4. *Client Response*:
+   - The client receives the server’s response and extracts the result (=FileList= or
+     =Content=), which it returns to the caller.
+
+**** Example Usage
+Assume the directory ="/home/user/files"= contains files =doc1.txt= and =doc2.txt=.
+
+1. Start the server:
+   #+begin_src erlang
+   Server = afile_server:start("/home/user/files").
+   #+end_src
+
+2. List files:
+   #+begin_src erlang
+   afile_client:ls(Server).  % Returns: {ok, ["doc1.txt", "doc2.txt"]} or an error
+   like {error, Reason}
+   #+end_src
+
+3. Get file contents:
+   #+begin_src erlang
+   afile_client:get_file(Server, "doc1.txt").  % Returns: {ok, <<BinaryContent>>} or
+   {error, Reason}
+   #+end_src
+
+**** Key Features
+- *Concurrency*: The server runs in its own process, allowing multiple clients to send
+  requests concurrently. Each client can also run in its own process.
+- *Message Passing*: Uses Erlang’s actor model, where clients and the server
+  communicate via asynchronous messages.
+- *Simplicity*: The code is minimal, focusing on two basic file operations.
+- *Error Handling*: The =file= module functions return ={ok, Result}= or ={error, Reason}=,
+  which is passed directly to the client.
+
+**** Potential Improvements
+- *Error Handling*: The client code assumes the server responds correctly. Adding
+  timeouts or pattern matching for error cases (e.g., ={Server, {error, Reason}}=)
+  would make it more robust.
+- *Security*: The server doesn’t validate file paths, which could allow access to files
+  outside =Dir=. Adding path validation would improve safety.
+- *Multiple Operations*: The server could support additional file operations (e.g.,
+  writing files).
+- *State Management*: The server could track additional state, like open file handles,
+  for more complex use cases.
+
+This code demonstrates Erlang’s strengths in concurrent, message-based systems,
+making it ideal for building reliable, distributed applications like file servers.
+
+** Sequential Programming
+*** Joe writes programs
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID:       f05c8e5e-abd6-4ca4-9d2b-589999e86ad9
+:END:
+
+**** How?
+
+**** Answer
+
+I write programs by starting small, building a few functions, and testing them in the
+shell. I compile and test as I go, gradually adding more functions. I don’t fully
+plan data structures upfront; instead, I adjust them based on what I learn from
+testing small examples. This “grow as I go” approach helps me avoid big mistakes,
+provides instant feedback, and keeps coding fun. Once I figure something out in the
+shell, I create a makefile and code to replicate it.
+
+*** New control abstractions
+**** for
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: c295bddc-43ea-4246-860f-8d5b63ad37c4
+:END:
+
+***** Define a for loop
+
+***** Answer
+
+#+begin_src erlang
+for(Max, Max, F) -> [F(Max)];
+for(I, Max, F) -> [F(I)|for(I+1, Max, F)].
+#+end_src
+
+As you gain experience, creating custom control structures can significantly reduce
+program size and improve clarity. Tailoring control structures to your specific
+problem, rather than relying on a limited set provided by the programming language,
+allows for more efficient and clear solutions.
+
+*** Built-in functions
+**** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 8848365b-c3a3-4a3c-890c-d7f9233d2a85
+:END:
+
+***** Definition?
+
+***** Answer
+
+A BIF (built-in function) is a function included in the Erlang language. Most BIFs
+are implemented as primitive operations in the Erlang virtual machine, though some
+are written in Erlang.
+
+They provide access to operating system features or perform tasks that are impossible
+or inefficient in pure Erlang, like converting a list to a tuple or getting the
+current date and time. To understand BIFs, print and study the manual page to learn
+their functions.
+
+** Records and maps
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 00f3ca29-7aa6-4249-bd8a-9475e34992b6
+:END:
+
+**** Compare JS and Erlang "maps"
+
+**** Answer
+
+In Erlang, maps behave differently from similar constructs in other languages, like
+JavaScript. In JavaScript, if you create an object:
+
+~x = {status: 'old', task: 'feed cats'}~
+
+assign it to y, and then update y.status = 'done', both y and x reflect the change
+(~{status: 'done', task: 'feed cats'}~). This happens because y is a reference to x,
+and modifying y alters x, which can lead to hard-to-debug errors due to aliased
+pointers.
+
+In contrast, Erlang’s equivalent code:
+
+#+begin_src erlang
+D1 = #{status => old, task => 'feed cats'},
+D2 = D1#{status := done},
+#+end_src
+
+keeps D1 unchanged. D2 appears as a deep copy of D1 with the updated status, but
+Erlang doesn’t actually create a full copy. It only duplicates the necessary parts of
+the internal structure, making the operation efficient while maintaining the illusion
+of a deep copy. This immutability prevents unintended side effects.
+
+** Error handling in sequential programs
+** Binaries and the Bit Syntax
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: c1584d1b-a311-4762-9339-404c12dc65a3
+:END:
+
+**** Why?
+
+**** Answer
+
+In Erlang, a binary is a data structure for efficiently storing large amounts of raw,
+unstructured data, like big strings or file contents. The Erlang VM optimizes
+binaries for fast input, output, and message passing. Use binaries whenever handling
+large data to save space.
+
+A binary typically has a bit count divisible by 8, aligning with a sequence of
+bytes. If the bit count isn’t divisible by 8, it’s called a bitstring, emphasizing
+the non-byte-aligned size.
+
+Binaries, bitstrings, and bit-level pattern matching were added to Erlang to simplify
+network programming, where protocol packets often require bit- or byte-level
+inspection. Unlike most languages (e.g., C, where the smallest addressable unit is an
+8-bit char, requiring complex masking and shifting to manipulate bits), Erlang’s
+smallest unit is a single bit. This allows direct access to bit sequences in
+bitstrings without error-prone shifting or masking, making bit manipulation
+straightforward and efficient.
+
+** Sequential Erlang
+*** Dynamic Code Loading
+**** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: b155a396-8436-434a-b102-5faad2c716b9
+:END:
+
+***** Definition?
+
+***** Answer
+
+Erlang’s dynamic code loading allows seamless updates to running code without
+stopping the system. When you call ~someModule:someFunction(...)~, Erlang automatically
+uses the latest version of the function, even if the module is recompiled during
+execution.
+
+For example, if module a calls b in a loop and b is recompiled, a will call the new
+version of b on the next iteration. This applies to all processes calling b, ensuring
+they use the updated code after recompilation.
+
+Here’s how it works with two sample modules:
+
+Module b:
+
+#+begin_src erlang
+-module(b).
+-export([x/0]).
+
+x() -> 1.
+#+end_src
+
+Module a:
+
+#+begin_src erlang
+-module(a).
+-compile(export_all).
+start(Tag) ->
+    spawn(fun() -> loop(Tag) end).
+loop(Tag) ->
+    sleep(),
+    Val = b:x(),
+    io:format("Vsn1 (~p) b:x() = ~p~n",[Tag, Val]),
+    loop(Tag).
+sleep() ->
+    receive
+    after 3000 -> true
+    end.
+#+end_src
+
+
+Erlang maintains two versions of a module at any time: the current version and an old
+version. When a module is recompiled: Processes using the old version are terminated.
+The current version becomes the old version.  The newly compiled module becomes the
+current version.  This behaves like a shift register, where the oldest code is
+discarded when new code is added. Some processes can run the old version while others
+use the new version simultaneously. For more details, refer to the purge_module
+documentation.
+
+*** Include Files
+**** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 93aae6e1-b01f-453c-969e-a7f1a8401a8b
+:END:
+
+***** Definition?
+
+***** Answer
+
+In Erlang, you can include files using the following syntax:
+
+#+begin_src erlang
+-include(Filename).
+#+end_src
+
+Include files typically have the .hrl extension and should specify an absolute or
+relative path for the preprocessor to locate them. For library header files, use:
+
+#+begin_src erlang
+-include_lib(Name).
+#+end_src
+
+Example:
+
+#+begin_src erlang
+-include_lib("kernel/include/file.hrl").
+#+end_src
+
+Here, the Erlang compiler locates the specified library file (file.hrl from the
+kernel application).  Include files commonly store shared record definitions. When
+multiple modules need the same record definitions, these are placed in .hrl files,
+which are then included by all relevant modules to ensure consistency.
+
+*** The Process Dictionary
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID:       150877b2-5253-4835-895c-ddb93099c123
+:END:
+
+**** Definition?
+
+**** Answer
+
+In Erlang, each process has a process dictionary, a private associative array
+(similar to a map or hashmap) that stores key-value pairs, where each key has a
+single value. It behaves like mutable variables in imperative languages, allowing
+changes to stored values.
+
+However, using the process dictionary introduces side effects, breaking the benefits
+of Erlang’s immutable variables (as discussed in Erlang Variables Do Not Vary). This
+can lead to subtle bugs and make debugging harder, so it should be used sparingly.
+
+The author rarely uses the process dictionary but considers it acceptable for storing
+write-once variables—keys assigned a value once and never changed. This limited use
+minimizes potential issues while leveraging the dictionary’s functionality.
