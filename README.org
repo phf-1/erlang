@@ -1,4 +1,4 @@
-* Erlang
+* Erlang Q&A
 :PROPERTIES:
 :ID:       1859d883-5ea2-4029-8770-e3abc802d9c2
 :END:
@@ -9,19 +9,19 @@ Q&A about Erlang © 2025 by Pierre-Henry FROHGING is licensed under Creative Com
 Attribution-ShareAlike 4.0 International. To view a copy of this license, visit
 https://creativecommons.org/licenses/by-sa/4.0/
 
-** Contribute
-
-1. Fork the repo.
-2. Change it.
-3. Send a pull request.
-
 ** Use
 
 1. Open Emacs.
 2. Install ~total-recall~ (https://melpa.org/#/total-recall).
 3. ~M-x total-recall~
 
-** Introducing Concurrency
+** Contribute
+
+1. Fork the repo.
+2. Change it.
+3. Send a pull request.
+
+** Concurrency
 *** Exercise
 :PROPERTIES:
 :TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
@@ -41,13 +41,13 @@ https://creativecommons.org/licenses/by-sa/4.0/
 - Pid ! Msg
 - receive Pattern -> … . end
 
-** Exercise
+*** Exercise
 :PROPERTIES:
 :TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
 :ID: ca628747-1b06-4670-a7e1-8662cfad2751
 :END:
 
-*** Explain
+**** Explain
 
 #+begin_src erlang
 -module(afile_client).
@@ -81,7 +81,7 @@ loop(Dir) ->
     loop(Dir).
 #+end_src
 
-*** Answer
+**** Answer
 
 This Erlang code implements a simple client-server system for file operations. The
 =afile_server= module runs a server process that handles file-related requests, while
@@ -89,13 +89,13 @@ the =afile_client= module provides functions for clients to interact with the
 server. Below is a detailed explanation of each module and how they work together,
 formatted in Org Mode.
 
-**** =afile_server= Module
+***** =afile_server= Module
 
 The =afile_server= module defines a server that manages file operations in a specified
 directory.
 
-***** Key Functions
-****** =start/1=
+****** Key Functions
+******* =start/1=
 
 #+begin_src erlang
 start(Dir) -> spawn(afile_server, loop, [Dir]).
@@ -108,7 +108,7 @@ start(Dir) -> spawn(afile_server, loop, [Dir]).
 - *Note*: =spawn/3= creates a new process for the =afile_server:loop/1= function with =Dir=
   as its initial state.
 
-****** =loop/1=
+******* =loop/1=
 #+begin_src erlang
 loop(Dir) -> receive {Client, list_dir} -> Client ! {self(), file:list_dir(Dir)};
     {Client, {get_file, File}} -> Full = filename:join(Dir, File), Client ! {self(),
@@ -134,12 +134,12 @@ loop(Dir) -> receive {Client, list_dir} -> Client ! {self(), file:list_dir(Dir)}
 - *Note*: =self()= returns the server’s PID, included in responses to identify the
   sender.
 
-**** =afile_client= Module
+***** =afile_client= Module
 The =afile_client= module provides functions for clients to send requests to the server
 and receive responses.
 
-***** Key Functions
-****** =ls/1=
+****** Key Functions
+******* =ls/1=
 #+begin_src erlang
 ls(Server) -> Server ! {self(), list_dir}, receive {Server, FileList} -> FileList
     end.
@@ -154,7 +154,7 @@ ls(Server) -> Server ! {self(), list_dir}, receive {Server, FileList} -> FileLis
 - *Note*: The client expects the response to come from the specific =Server= PID to
   ensure it processes the correct message.
 
-****** =get_file/2=
+******* =get_file/2=
 #+begin_src erlang
 get_file(Server, File) -> Server ! {self(), {get_file, File}}, receive {Server,
     Content} -> Content end.
@@ -169,7 +169,7 @@ get_file(Server, File) -> Server ! {self(), {get_file, File}}, receive {Server,
   - Returns =Content= (the file’s contents or an error).
 - *Note*: Like =ls/1=, it ensures the response comes from the correct =Server=.
 
-**** How It Works Together
+***** How It Works Together
 1. *Starting the Server*:
    - A user starts the server by calling =afile_server:start(Dir)=, where =Dir= is the
      directory to operate on (e.g., ="/path/to/dir"=).
@@ -191,7 +191,7 @@ get_file(Server, File) -> Server ! {self(), {get_file, File}}, receive {Server,
    - The client receives the server’s response and extracts the result (=FileList= or
      =Content=), which it returns to the caller.
 
-**** Example Usage
+***** Example Usage
 Assume the directory ="/home/user/files"= contains files =doc1.txt= and =doc2.txt=.
 
 1. Start the server:
@@ -211,7 +211,7 @@ Assume the directory ="/home/user/files"= contains files =doc1.txt= and =doc2.tx
    {error, Reason}
    #+end_src
 
-**** Key Features
+***** Key Features
 - *Concurrency*: The server runs in its own process, allowing multiple clients to send
   requests concurrently. Each client can also run in its own process.
 - *Message Passing*: Uses Erlang’s actor model, where clients and the server
@@ -220,7 +220,7 @@ Assume the directory ="/home/user/files"= contains files =doc1.txt= and =doc2.tx
 - *Error Handling*: The =file= module functions return ={ok, Result}= or ={error, Reason}=,
   which is passed directly to the client.
 
-**** Potential Improvements
+***** Potential Improvements
 - *Error Handling*: The client code assumes the server responds correctly. Adding
   timeouts or pattern matching for error cases (e.g., ={Server, {error, Reason}}=)
   would make it more robust.
@@ -471,3 +471,407 @@ can lead to subtle bugs and make debugging harder, so it should be used sparingl
 The author rarely uses the process dictionary but considers it acceptable for storing
 write-once variables—keys assigned a value once and never changed. This limited use
 minimizes potential issues while leveraging the dictionary’s functionality.
+
+** Types
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 94152c31-fc77-42b9-bdb4-671944ee16ad
+:END:
+
+**** Why write type definitions?
+
+**** Answer
+
+Dialyzer and Typer help verify code consistency and identify type information in
+Erlang programs, simplifying tasks that would otherwise require manual effort or risk
+issues in production.
+
+Dialyzer, short for "Discrepancy Analyzer for Erlang programs," detects
+inconsistencies in Erlang code. Typer provides details about the types used in your
+code.
+
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: e00a6bb2-c9ee-4d7b-b324-701ce6bcb405
+:END:
+
+**** How to write good type definitions?
+
+**** Answer
+
+Writing clear type annotations is an art, much like crafting clean code. It’s
+challenging and takes years to master. Like zen meditation, practice makes it easier
+and improves your skill over time.
+
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: da3b9576-6126-4a6b-bdf9-47cf22859a84
+:END:
+
+**** How to work with static analysis tools?
+
+**** Answer
+
+To effectively use Dialyzer, integrate it into every stage of development. Before
+coding a new module, define and declare types for all exported functions. Write these
+type specifications first, commenting out those for unimplemented functions and
+uncommenting them as you implement each one.
+
+Write functions one at a time, running Dialyzer after each to check for errors. Add
+type specifications for exported functions, and for non-exported ones if they aid
+type analysis or improve code clarity (type annotations also serve as valuable
+documentation). If Dialyzer detects errors, pause to understand and resolve them
+before proceeding.
+
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: b9ebdeb9-2179-4381-8ee6-9cee1de104a5
+:END:
+
+**** How to help Dialyzer?
+
+**** Answer
+
+Avoid -compile(export_all). Exporting all functions can prevent Dialyzer from
+accurately analyzing argument types, as they could be called from anywhere with any
+type, leading to confusing errors that propagate through the module.
+
+Write detailed, precise type specifications for all arguments of exported
+functions. Constrain types tightly—e.g., specify positive_integer() or a bounded
+range instead of just integer()—to improve Dialyzer’s analysis. Add precise guard
+tests in your code to aid analysis and help the compiler generate better code.
+
+Include default values for all fields in record definitions. Without defaults, the
+atom undefined is used, which can propagate through the program and cause unexpected
+type errors.
+
+Avoid anonymous variables in function arguments, as they lead to overly broad
+types. Constrain variables as specifically as possible to ensure accurate type
+analysis.
+
+** Compiling and running
+*** Loading code
+**** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 1b729bb4-46dc-4625-836b-8064db31ca6f
+:END:
+
+***** What if the code is in the same directory as erl?
+
+***** Answer
+
+It will find the code.
+
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: e7f2845a-cb1d-4d78-8f0c-05bbb31b2ba2
+:END:
+
+**** What if the code is not in the same directory as erl?
+
+**** Answer
+
+Erlang requires known source directories to locate and load code.
+
+***** Code Loader Behavior
+
+When a function in an unloaded module is called, Erlang triggers an exception and
+searches for the module’s object code file (e.g., ~myMissingModule.beam~) in the load
+path directories. It loads the first matching file found.
+
+***** Viewing the Load Path
+
+To check the current load path, start an Erlang shell and run:
+
+#+begin_src erlang
+code:get_path().
+#+end_src
+
+Example output:
+#+begin_example
+[".",
+"/usr/local/lib/erlang/lib/kernel-2.15/ebin",
+"/usr/local/lib/erlang/lib/stdlib-1.18/ebin",
+"/home/joe/installed/proper/ebin",
+...]
+#+end_example
+
+***** Updating the Load Path
+
+Use these functions to modify the load path:
+- ~code:add_patha(Dir)~: Adds ~Dir~ to the start of the load path. Returns ~true~ or
+  ~{error, bad_directory}~.
+- ~code:add_pathz(Dir)~: Adds ~Dir~ to the end of the load path. Returns ~true~ or
+  ~{error, bad_directory}~.
+
+Usually, either function works, but differing results may suggest an incorrect module
+was loaded. To diagnose:
+- Run ~code:all_loaded()~ to list loaded modules.
+- Run ~code:clash()~ to identify conflicts.
+
+***** Configuring the Load Path
+
+- *Permanent*: Add load path commands to ~~/.erlang~ in your home directory (~init:get_argument(home)~).
+- *Temporary*: Launch Erlang with load path flags:
+
+#+begin_src shell
+erl -pa Dir1 -pa Dir2 -pz DirK1 -pz DirK2
+#+end_src
+
+***** Notes
+
+The ~code~ module includes other functions for advanced path manipulation, but
+they’re rarely needed unless performing specialized system programming.
+
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: f57a688a-4bf1-4f1d-86a5-d5295d17de7e
+:END:
+
+**** Explain
+
+#+begin_example
+$ erl
+...
+1> c(hello).
+{ok,hello}
+2> hello:start().
+Hello world
+ok
+#+end_example
+
+#+begin_src bash
+erl -eval 'io:format("Memory: ~p~n", [erlang:memory(total)]).'\
+-noshell -s init stop
+#+end_src
+
+#+begin_src bash
+$ erlc hello.erl
+$ erl -noshell -s hello start -s init stop
+Hello world
+#+end_src
+
+#+begin_src erlang
+#!/usr/bin/env escript
+main(Args) ->
+    io:format("Hello world~n").
+#+end_src
+
+**** Answer
+
+This demonstrates using the Erlang shell interactively:
+- `$ erl`: Starts the Erlang shell.
+- `c(hello)`: Compiles the `hello.erl` source file, producing a `hello.beam`
+  file. The output `{ok,hello}` confirms successful compilation.
+- `hello:start()`: Calls the `start/0` function in the `hello` module, which outputs
+  `"Hello world"` and returns `ok`.
+
+This runs an Erlang command without an interactive shell:
+- `erl`: Launches the Erlang runtime.
+- `-eval 'io:format("Memory: ~p~n", [erlang:memory(total)]).'`: Executes the command
+  to print the total memory usage in bytes.
+- `-noshell`: Runs Erlang without an interactive shell.
+- `-s init stop`: Stops the Erlang runtime after executing the command.
+
+This compiles and runs the `hello` module non-interactively:
+- `$ erlc hello.erl`: Compiles `hello.erl` into `hello.beam`.
+- `$ erl`: Starts the Erlang runtime.
+- `-noshell`: Disables the interactive shell.
+- `-s hello start`: Runs the `start/0` function in the `hello` module, which outputs
+  `"Hello world"`.
+- `-s init stop`: Terminates the Erlang runtime after execution.
+
+*** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 67ffdf69-810d-496a-bd3b-94ab1b40b2e6
+:END:
+
+**** How to automate these steps?
+
+**** Answer
+
+#+begin_src makefile
+# leave these lines alone
+.SUFFIXES: .erl .beam .yrl
+.erl.beam:
+        erlc -W $<
+
+.yrl.erl:
+        erlc -W $<
+
+ERL = erl -boot start_clean
+# Here's a list of the erlang modules you want compiling
+# If the modules don't fit onto one line add a \ character
+# to the end of the line and continue on the next line
+# Edit the lines below
+MODS = module1 module2 \
+module3 ... special1 ...\
+...
+moduleN
+
+# The first target in any makefile is the default target.
+# If you just type "make" then "make all" is assumed (because
+# "all" is the first target in this makefile)
+
+all: compile
+compile: ${MODS:%=%.beam} subdirs
+
+## special compilation requirements are added here
+special1.beam: special1.erl
+        ${ERL} -Dflag1 -W0 special1.erl
+
+## run an application from the makefile
+application1: compile
+        ${ERL} -pa Dir1
+        -s application1 start Arg1 Arg2
+
+# the subdirs target compiles any code in
+# sub-directories
+subdirs:
+        cd dir1; $(MAKE)
+        cd dir2; $(MAKE)
+        ...
+
+# remove all the code
+clean:
+        rm -rf *.beam erl_crash.dump
+        cd dir1; $(MAKE) clean
+        cd dir2; $(MAKE) clean
+#+end_src
+
+** Concurrent and Distributed Programs
+*** Real-World
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 626454c6-b1b6-46a7-bf53-fcc0340f4df7
+:END:
+
+***** Why using concurrency?
+
+***** Answer
+
+1. We understand concurrency.
+2. The world is parallel.
+3. Erlang programs model how we think and interact.
+4. People function as independent entities who communicate by sending messages.
+5. If somebody dies, other people will notice.
+*** Programming
+**** Receive with a Timeout
+***** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 823f431f-4477-41eb-8ca7-ad22d057ea35
+:END:
+
+****** Explain
+
+#+begin_src erlang
+receive
+    Pattern1 [when Guard1] ->
+        Expressions1;
+    Pattern2 [when Guard2] ->
+        Expressions2;
+    ...
+after Time ->
+        Expressions
+end
+#+end_src
+
+****** Answer
+
+This sets a maximum time that the process will wait to receive a message. If no
+matching message has arrived within Time milliseconds of entering the receive
+expression, then the process will stop waiting for a message and evaluate
+Expressions.
+
+***** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 77d4fe68-f7bb-49d9-a38e-bb86853593e9
+:END:
+
+****** Explain
+
+#+begin_src erlang
+sleep(T) ->
+    receive
+    after T ->
+            true
+    end.
+#+end_src
+
+****** Answer
+
+You can write a receive consisting of only a timeout. Using this, we can define a
+function sleep(T), which suspends the current process for T milliseconds.
+
+***** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 1405045e-747d-44c8-bba3-988a0800d50a
+:END:
+
+****** Explain
+
+#+begin_src erlang
+flush_buffer() ->
+    receive
+        _Any ->
+            flush_buffer()
+    after 0 ->
+            true
+    end.
+#+end_src
+
+****** Answer
+
+A timeout value of 0 causes the body of the timeout to occur immediately, but before
+this happens, the system tries to match any patterns in the mailbox.  We can use this
+to define a function flush_buffer, which entirely empties all messages in the mailbox
+of a process. Without the timeout clause, flush_buffer would suspend forever and not
+return when the mailbox was empty.
+
+***** Exercise
+:PROPERTIES:
+:TYPE: b0d53cd4-ad89-4333-9ef1-4d9e0995a4d8
+:ID: 5006fa4d-aa43-4a82-9279-0b2e613314f8
+:END:
+
+****** Explain
+
+#+begin_src erlang
+priority_receive() ->
+    receive
+        {alarm, X} ->
+            {alarm, X}
+    after 0 ->
+            receive
+                Any ->
+                    Any
+            end
+    end.
+#+end_src
+
+****** Answer
+
+If there is not a message matching {alarm, X} in the mailbox, then priority_receive
+will receive the first message in the mailbox. If there is no message at all, it will
+suspend in the innermost receive and return the first message it receives.  If there
+is a message matching {alarm, X}, then this message will be returned
+immediately. Remember that the after section is checked only after pattern matching
+has been performed on all the entries in the mailbox.  Without the after 0 statement,
+the alarm message would not be matched first.  Note: Using large mailboxes with
+priority receive is rather inefficient, so if you’re going to use this technique,
+make sure your mailboxes are not too large.
+
+*** Register
+
+p202
