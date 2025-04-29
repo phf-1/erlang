@@ -9,6 +9,8 @@ Q&A about Erlang © 2025 by Pierre-Henry FROHRING is licensed under Creative Com
 Attribution-ShareAlike 4.0 International. To view a copy of this license, visit
 https://creativecommons.org/licenses/by-sa/4.0/
 
+The section "Acknowledgments" lists all contributors.
+
 ** Use
 
 1. Open Emacs.
@@ -19,6 +21,7 @@ https://creativecommons.org/licenses/by-sa/4.0/
 
 1. Fork the repo.
 2. Change it.
+   - Add yourself to the list of contributors in the "Acknowledgments" section.
 3. Send a pull request.
 
 ** Concurrency
@@ -875,3 +878,12 @@ make sure your mailboxes are not too large.
 *** Register
 
 p202
+
+** Acknowledgments
+
+The following people have contributed to the Erlang Q&A:
+
+- Copyright 2025 Pierre-Henry FROHRING
+
+
+
